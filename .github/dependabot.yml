@@ -1,0 +1,24 @@
+# To get started with Dependabot version updates, you'll need to specify which
+# package ecosystems to update and where the package manifests are located.
+# Please see the documentation for all configuration options:
+# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+updates:
+  # Group all patch and minor Go module updates into a single PR for ease of management. This assumes
+  # that Go modules respect semver, which is generally true but not guaranteed.
+  # Update weekly to avoid excessive PRs.
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      all-go-mod-patch-and-minor:
+        patterns: [ "*" ]
+        update-types: [ "patch", "minor" ]
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
