@@ -29,6 +29,8 @@ const (
 	defaultVCPUs    = 2
 	defaultCores    = 1
 	defaultBootType = "legacy"
+	defaultOSType   = "linux"
+	windowsOSType   = "windows"
 )
 
 // NutanixDriver driver structure
@@ -55,6 +57,7 @@ type NutanixDriver struct {
 	StorageContainer string
 	DiskSize         int
 	CloudInit        string
+	OS               string
 	SerialPort       bool
 	Project          string
 	BootType         string
@@ -380,6 +383,7 @@ func (d *NutanixDriver) Create() error {
 	// CloudInit preparation
 
 	var userdata []byte
+	isWindows := d.OS == windowsOSType
 
 	if d.CloudInit != "" {
 		t := yaml.Node{Kind: yaml.DocumentNode, HeadComment: "cloud-config"}
@@ -401,7 +405,7 @@ func (d *NutanixDriver) Create() error {
 
 		if t.Content == nil {
 			log.Infof("Cloud-init provided invalid: Use Rancher default")
-			userdata = []byte("#cloud-config\r\nusers:\r\n - name: root\r\n   ssh_authorized_keys:\r\n    - " + string(pubKey))
+			userdata = defaultCloudInitUserData(d.SSHUser, pubKey, isWindows)
 		} else {
 			log.Infof("Cloud-init merge")
 
@@ -414,16 +418,7 @@ func (d *NutanixDriver) Create() error {
 				rootNode.Content = append(rootNode.Content, usersNode)
 			}
 
-			rancherNode := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
-			rancherNode.Content = append(rancherNode.Content, buildStringNodes("name", "root", "")...)
-			rancherNode.Content = append(rancherNode.Content, buildStringNodes("sudo", "ALL=(ALL) NOPASSWD:ALL", "")...)
-			rancherNode.Content = append(rancherNode.Content, buildScalarNodes("ssh_authorized_keys")...)
-
-			sshSeqNode := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
-			sshSeqNode.Content = append(sshSeqNode.Content, buildScalarNodes(string(pubKey))...)
-
-			rancherNode.Content = append(rancherNode.Content, sshSeqNode)
-			usersNode.Content = append(usersNode.Content, rancherNode)
+			usersNode.Content = append(usersNode.Content, buildCloudInitUser(d.SSHUser, pubKey, isWindows))
 
 			userdata, err = yaml.Marshal(&t)
 			if err != nil {
@@ -433,7 +428,7 @@ func (d *NutanixDriver) Create() error {
 		}
 	} else {
 		log.Infof("No Cloud-init provided: Use Rancher default")
-		userdata = []byte("#cloud-config\r\nusers:\r\n - name: root\r\n   ssh_authorized_keys:\r\n    - " + string(pubKey))
+		userdata = defaultCloudInitUserData(d.SSHUser, pubKey, isWindows)
 	}
 
 	// Generate metadata for the VM
@@ -642,6 +637,17 @@ func (d *NutanixDriver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "NUTANIX_CLOUD_INIT",
 			Name:   "nutanix-cloud-init",
 			Usage:  "Cloud-init configuration",
+		},
+		mcnflag.StringFlag{
+			EnvVar: "NUTANIX_VM_OS",
+			Name:   "nutanix-vm-os",
+			Usage:  "The guest OS family of the VM (linux or windows). Windows guests are expected to run cloudbase-init and consume the same cloud-init payload as Linux guests",
+			Value:  defaultOSType,
+		},
+		mcnflag.StringFlag{
+			EnvVar: "NUTANIX_VM_SSH_USER",
+			Name:   "nutanix-vm-ssh-user",
+			Usage:  "The SSH username to provision via cloud-init on the newly created VM (default: root for linux, Administrator for windows)",
 		},
 		mcnflag.BoolFlag{
 			EnvVar: "NUTANIX_VM_SERIAL_PORT",
@@ -860,6 +866,21 @@ func (d *NutanixDriver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	}
 	d.ImageSize = opts.Int("nutanix-vm-image-size")
 	d.CloudInit = opts.String("nutanix-cloud-init")
+
+	d.OS = opts.String("nutanix-vm-os")
+	if d.OS != defaultOSType && d.OS != windowsOSType {
+		return fmt.Errorf("nutanix-vm-os %s is invalid", d.OS)
+	}
+
+	d.SSHUser = opts.String("nutanix-vm-ssh-user")
+	if d.SSHUser == "" {
+		if d.OS == windowsOSType {
+			d.SSHUser = "Administrator"
+		} else {
+			d.SSHUser = "root"
+		}
+	}
+
 	d.SerialPort = opts.Bool("nutanix-vm-serial-port")
 	d.Project = opts.String("nutanix-project")
 

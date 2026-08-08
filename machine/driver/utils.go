@@ -67,6 +67,57 @@ func buildScalarNodes(key string) []*yaml.Node {
 	return []*yaml.Node{keyNode}
 }
 
+// buildBoolNodes builds Nodes for a single key: bool value instance
+func buildBoolNodes(key string, value bool) []*yaml.Node {
+	keyNode := &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Tag:   "!!str",
+		Value: key,
+	}
+	boolStr := "false"
+	if value {
+		boolStr = "true"
+	}
+	valueNode := &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Tag:   "!!bool",
+		Value: boolStr,
+	}
+	return []*yaml.Node{keyNode, valueNode}
+}
+
+// buildCloudInitUser builds a cloud-init "users" list entry that grants the given
+// user SSH key access. Linux users are granted passwordless sudo; Windows users are
+// marked active, since cloudbase-init leaves local accounts (e.g. the built-in
+// Administrator) disabled by default.
+func buildCloudInitUser(username string, pubKey []byte, isWindows bool) *yaml.Node {
+	userNode := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	userNode.Content = append(userNode.Content, buildStringNodes("name", username, "")...)
+
+	if isWindows {
+		userNode.Content = append(userNode.Content, buildBoolNodes("inactive", false)...)
+	} else {
+		userNode.Content = append(userNode.Content, buildStringNodes("sudo", "ALL=(ALL) NOPASSWD:ALL", "")...)
+	}
+
+	userNode.Content = append(userNode.Content, buildScalarNodes("ssh_authorized_keys")...)
+
+	sshSeqNode := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+	sshSeqNode.Content = append(sshSeqNode.Content, buildScalarNodes(string(pubKey))...)
+	userNode.Content = append(userNode.Content, sshSeqNode)
+
+	return userNode
+}
+
+// defaultCloudInitUserData returns the default #cloud-config document used when no
+// (or an invalid) cloud-init was supplied for the VM.
+func defaultCloudInitUserData(username string, pubKey []byte, isWindows bool) []byte {
+	if isWindows {
+		return []byte("#cloud-config\r\nusers:\r\n - name: " + username + "\r\n   inactive: false\r\n   ssh_authorized_keys:\r\n    - " + string(pubKey))
+	}
+	return []byte("#cloud-config\r\nusers:\r\n - name: " + username + "\r\n   ssh_authorized_keys:\r\n    - " + string(pubKey))
+}
+
 // buildMapNodes builds Nodes for a key: map instance
 // func buildMapNodes(key string) (*yaml.Node, *yaml.Node) {
 // 	n1, n2 := &yaml.Node{
