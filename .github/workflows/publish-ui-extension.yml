@@ -1,0 +1,91 @@
+name: Publish UI Extension
+
+# Manually-triggered: builds ui/pkg/nutanix into a Helm chart (the format
+# Rancher's Extensions catalog consumes - see ui/pkg/nutanix/README.md) and
+# opens a PR against gh-pages with the result. Nothing is pushed to
+# gh-pages directly; review and merge that PR to actually publish.
+#
+# This intentionally does not use Rancher's own reusable workflow
+# (rancher/dashboard/.github/workflows/create-pr-build-extension-charts.yml)
+# because that workflow hardcodes repo-root paths for pkg/, package.json,
+# and yarn.lock, whereas this repo nests the extension workspace under ui/
+# to keep it separate from the Go driver module. This reimplements the
+# same underlying yarn publish-pkgs step (Rancher's own tooling) by hand
+# around that constraint.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  publish:
+    name: Build and open a gh-pages sync PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Fetch gh-pages
+        run: git fetch origin gh-pages:refs/remotes/origin/gh-pages
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: "yarn"
+          cache-dependency-path: ui/yarn.lock
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.8.0"
+
+      - name: Install dependencies
+        working-directory: ui
+        run: yarn install --frozen-lockfile
+
+      - name: Build and package extension charts
+        working-directory: ui
+        run: yarn publish-pkgs -s ${{ github.repository }} -b gh-pages
+
+      - name: Prepare gh-pages worktree
+        run: git worktree add gh-pages-worktree origin/gh-pages
+
+      - name: Sync generated chart artifacts into gh-pages worktree
+        run: |
+          for d in assets charts extensions; do
+            mkdir -p "gh-pages-worktree/$d"
+            if [ -d "ui/$d" ]; then
+              cp -R "ui/$d/." "gh-pages-worktree/$d/"
+            fi
+          done
+          if [ -f "ui/index.yaml" ]; then
+            cp "ui/index.yaml" "gh-pages-worktree/index.yaml"
+          fi
+
+      - name: Open pull request against gh-pages
+        working-directory: gh-pages-worktree
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No changes to publish."
+            exit 0
+          fi
+
+          BRANCH="sync-$(date +%Y-%m-%d-%H-%M-%S)"
+          git checkout -b "$BRANCH"
+          git add assets charts extensions index.yaml
+          git commit -m "Publish nutanix UI extension chart"
+          git push origin "$BRANCH"
+          gh pr create --base gh-pages --head "$BRANCH" \
+            --title "Publish nutanix UI extension chart" \
+            --body "Automated chart build from workflow run ${{ github.run_id }} (triggered by @${{ github.actor }})."
