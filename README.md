@@ -36,6 +36,7 @@ This repository contains the Rancher Node Driver for Nutanix. Nutanix Node drive
 - Boot type selection : Legacy or UEFI 
 - GPU support
 - Prism Central Service Accounts support
+- Windows guest OS support (via cloudbase-init)
 
 
 ## Installation
@@ -93,6 +94,8 @@ If you want to use Nutanix Node Driver, you need add it in order to start using 
 | `nutanix-disk-size`          | The size of the additional disk to add to the VM (in GiB)                                        | no       |                                           |
 | `nutanix-storage-container`  | The storage container UUID of the additional disk to add to the VM                               | no       |                                           |
 | `nutanix-cloud-init`         | Cloud-init to provide to the VM (will be patched with rancher root user)                         | no       |                                           |
+| `nutanix-vm-os`              | The guest OS family of the VM (linux or windows); Windows uses cloudbase-init for cloud-init     | no       | linux                                     |
+| `nutanix-vm-ssh-user`        | SSH username to provision via cloud-init on the newly created VM                                 | no       | root (linux) / Administrator (windows)    |
 | `nutanix-vm-cpu-passthrough` | Enable passthrough the host's CPU features to the newly created VM                               | no       | false                                     |
 | `nutanix-vm-serial-port`     | Attach a serial port to the newly created VM                                                     | no       | false                                     |
 | `nutanix-vm-description`     | The description of the newly created VM                                                          | no       | VM created by Nutanix Rancher Node Driver |
@@ -121,6 +124,24 @@ The Rancher Node Driver supports attaching GPU devices to VMs. To use GPUs:
 - Only UNUSED GPUs from the target Prism Element cluster will be selected
 - GPU names must match exactly with the GPU names available in the cluster
 - The driver will search for available GPUs across all hosts in the specified cluster
+
+## Windows Node Support
+
+The Rancher Node Driver can provision Windows Server VMs as Rancher-managed nodes, using the same `GuestCustomization` cloud-init mechanism as Linux VMs. This mirrors how Rancher's own vSphere node driver supports Windows: rather than using Sysprep, the Windows VM template runs [cloudbase-init](https://cloudbase-init.readthedocs.io/) to consume the same `#cloud-config` payload cloud-init consumes on Linux, so existing cloudbase-init-based templates and cloud-init scripts can be reused unchanged.
+
+To use it, set:
+- `nutanix-vm-os=windows`
+- `nutanix-vm-ssh-user` if the target account isn't the built-in `Administrator` (the default when unset)
+
+Your existing `nutanix-cloud-init` payload can be passed through as-is; the driver only changes how it injects the SSH-enabled user into the `users` list (Windows accounts are enabled via `inactive: false`, since cloudbase-init leaves local accounts, including the built-in Administrator, disabled by default).
+
+The Windows image referenced by `nutanix-vm-image` must be prepared before use, the same way a Linux image must already support cloud-init:
+- [cloudbase-init](https://cloudbase-init.readthedocs.io/) installed, configured with a datasource compatible with AHV's cloud-init guest customization (the ConfigDrive datasource is the most likely match — verify against your template before relying on it in production)
+- Win32-OpenSSH Server feature installed (the driver does not install it for you)
+- Nutanix VirtIO drivers installed
+- Generalized with `sysprep /generalize /oobe /shutdown` (or the modern in-box equivalent) so the template boots to OOBE, ready for per-VM customization
+
+Windows worker nodes are a Rancher/RKE2 capability, not something this driver enforces: they're only supported on RKE2/K3s clusters (not the legacy RKE1 flow), the control plane must remain Linux-only with Windows nodes as workers, and Calico is required as the CNI. See [Rancher's Windows cluster documentation](https://ranchermanager.docs.rancher.com/) for details.
 
 ## Development
 
