@@ -92,3 +92,54 @@ func TestSetConfigFromFlags_InvalidOS(t *testing.T) {
 		t.Fatal("expected an error for an invalid nutanix-vm-os value, got nil")
 	}
 }
+
+func TestSetConfigFromFlags_StaticIPUnsetByDefault(t *testing.T) {
+	d := NewDriver("default", "path")
+	checkFlags := baseValidFlags(nil)
+
+	if err := d.SetConfigFromFlags(checkFlags); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if d.VMIP != "" {
+		t.Errorf("expected VMIP to default empty, got %q", d.VMIP)
+	}
+}
+
+func TestSetConfigFromFlags_ValidStaticIP(t *testing.T) {
+	d := NewDriver("default", "path")
+	checkFlags := baseValidFlags(map[string]interface{}{
+		"nutanix-vm-ip": "10.0.0.50",
+	})
+
+	if err := d.SetConfigFromFlags(checkFlags); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(checkFlags.InvalidFlags) != 0 {
+		t.Errorf("unexpected invalid flags: %v", checkFlags.InvalidFlags)
+	}
+	if d.VMIP != "10.0.0.50" {
+		t.Errorf("expected VMIP 10.0.0.50, got %q", d.VMIP)
+	}
+}
+
+func TestSetConfigFromFlags_InvalidStaticIP(t *testing.T) {
+	d := NewDriver("default", "path")
+	checkFlags := baseValidFlags(map[string]interface{}{
+		"nutanix-vm-ip": "not-an-ip",
+	})
+
+	if err := d.SetConfigFromFlags(checkFlags); err == nil {
+		t.Fatal("expected an error for an invalid nutanix-vm-ip value, got nil")
+	}
+}
+
+func TestSetConfigFromFlags_IPv6StaticIPRejected(t *testing.T) {
+	d := NewDriver("default", "path")
+	checkFlags := baseValidFlags(map[string]interface{}{
+		"nutanix-vm-ip": "2001:db8::1",
+	})
+
+	if err := d.SetConfigFromFlags(checkFlags); err == nil {
+		t.Fatal("expected an error for an IPv6 nutanix-vm-ip value (API only supports IPv4), got nil")
+	}
+}
