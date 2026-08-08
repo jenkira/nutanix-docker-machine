@@ -5,14 +5,14 @@ This repository contains the Rancher Node Driver for Nutanix. Nutanix Node drive
 
 ---
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/nutanix/docker-machine)](https://goreportcard.com/report/github.com/nutanix/docker-machine)
-![CI](https://github.com/nutanix/docker-machine/actions/workflows/integration.yml/badge.svg)
-![Release](https://github.com/nutanix/docker-machine/actions/workflows/release.yml/badge.svg)
+[![Go Report Card](https://goreportcard.com/badge/github.com/jenkira/nutanix-docker-machine)](https://goreportcard.com/report/github.com/jenkira/nutanix-docker-machine)
+![CI](https://github.com/jenkira/nutanix-docker-machine/actions/workflows/integration.yml/badge.svg)
+![Release](https://github.com/jenkira/nutanix-docker-machine/actions/workflows/release.yml/badge.svg)
 
-[![release](https://img.shields.io/github/release-pre/nutanix/docker-machine.svg)](https://github.com/nutanix/docker-machine/releases)
-[![License](https://img.shields.io/badge/License-MPL%202.0-blue.svg)](https://github.com/nutanix/docker-machine/blob/master/LICENSE)
+[![release](https://img.shields.io/github/release-pre/jenkira/nutanix-docker-machine.svg)](https://github.com/jenkira/nutanix-docker-machine/releases)
+[![License](https://img.shields.io/badge/License-MPL%202.0-blue.svg)](https://github.com/jenkira/nutanix-docker-machine/blob/main/LICENSE)
 ![Proudly written in Golang](https://img.shields.io/badge/written%20in-Golang-92d1e7.svg)
-[![Releases](https://img.shields.io/github/downloads/nutanix/docker-machine/total.svg)](https://github.com/nutanix/docker-machine/releases)
+[![Releases](https://img.shields.io/github/downloads/jenkira/nutanix-docker-machine/total.svg)](https://github.com/jenkira/nutanix-docker-machine/releases)
 
 ---
 
@@ -48,13 +48,14 @@ If you want to use Nutanix Node Driver, you need add it in order to start using 
 2. Click *Add Node Driver*.
 3. Complete the Add Node Driver form. Then click Create.
 
-    - *Download URL*: `https://github.com/nutanix/docker-machine/releases/download/v3.9.0/docker-machine-driver-nutanix`  
-    - *Custom UI URL*: `https://nutanix.github.io/rancher-ui-driver/v3.9.0/component.js`
-    - *Checksum*: `dc1b9753534236830cbb64b3889bce09163dcfe239cf52d8e608c9aba4f67aac`  
-    - *Whitelist Domains*: `nutanix.github.io`  
-      
-    
-    *whitelist is mandatory and need to be changed if you relocate the UI driver*
+    - *Download URL*: `https://github.com/jenkira/nutanix-docker-machine/releases/download/v3.10.0/docker-machine-driver-nutanix`  
+    - *Checksum*: `(pending - filled in once the v3.10.0 release finishes publishing)`  
+
+    This fork does not host the legacy `component.js` Custom UI - it's RKE1-only
+    tooling whose official scaffold Rancher archived in 2024 (see
+    [Windows Node Support](#windows-node-support)). Leave *Custom UI URL* and
+    *Whitelist Domains* blank for a driver-only install using Rancher's generic
+    form, or see [`ui/`](./ui) for the RKE2/K3s Rancher Extension in progress here.
 
 <img width="948" height="474" alt="image" src="https://github.com/user-attachments/assets/e2383b37-bb55-4242-ae6e-fec392da9577" />
 
@@ -65,7 +66,7 @@ If you want to use Nutanix Node Driver, you need add it in order to start using 
 
 
 4. Wait for the driver to become "Active"
-5. Go to *RKE1 Configuration > Node Templates*, your can create a Nutanix Template and custom UI should show up.
+5. Go to *RKE1 Configuration > Node Templates*, you can create a Nutanix Template using Rancher's generic driver form (all `nutanix-*` args below become fields).
 
 ![image](https://github.com/nutanix/docker-machine/assets/180613/8c56a022-ad6b-406b-80e6-10c5673c0d9e)
 
