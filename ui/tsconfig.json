@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "es2018",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "lib": ["dom", "es2018", "esnext.asynciterable"],
+    "strict": true,
+    "allowJs": true,
+    "sourceMap": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "types": ["jest", "cypress", "node"],
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["./*"],
+      "@/*": ["./*"],
+      "@shell/*": ["./node_modules/@rancher/shell/*"]
+    }
+  },
+  "include": [
+    "pkg/**/*.ts",
+    "pkg/**/*.vue"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "dist-pkg"
+  ]
+}
