@@ -1,6 +1,6 @@
 <script>
-import LabeledInput from '@shell/components/form/LabeledInput';
-import Checkbox from '@shell/components/form/Checkbox';
+import LabeledInput from '@shell/rancher-components/Form/LabeledInput/LabeledInput.vue';
+import Checkbox from '@shell/rancher-components/Form/Checkbox/Checkbox.vue';
 
 // Field names below (endpoint/port/username/password/insecure) mirror the
 // `nutanix-*` driver flags in machine/driver/driver.go with the `nutanix-`

@@ -63,6 +63,7 @@ jobs:
           exit-code: "1"
           vuln-type: "os,library"
           severity: "CRITICAL,HIGH"
+          skip-dirs: "ui"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7.0.1

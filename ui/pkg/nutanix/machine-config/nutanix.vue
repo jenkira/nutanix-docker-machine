@@ -1,7 +1,7 @@
 <script>
-import LabeledInput from '@shell/components/form/LabeledInput';
+import LabeledInput from '@shell/rancher-components/Form/LabeledInput/LabeledInput.vue';
 import LabeledSelect from '@shell/components/form/LabeledSelect';
-import Checkbox from '@shell/components/form/Checkbox';
+import Checkbox from '@shell/rancher-components/Form/Checkbox/Checkbox.vue';
 
 const OS_OPTIONS = [
   { label: 'Linux', value: 'linux' },
