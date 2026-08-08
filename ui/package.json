@@ -11,6 +11,9 @@
     "ip": "2.0.1",
     "node-polyfill-webpack-plugin": "3.0.0"
   },
+  "devDependencies": {
+    "@types/lodash": "4.17.5"
+  },
   "scripts": {
     "dev": "NODE_ENV=dev ./node_modules/.bin/vue-cli-service serve",
     "build": "./node_modules/.bin/vue-cli-service build",
