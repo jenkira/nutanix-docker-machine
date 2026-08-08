@@ -1,0 +1,11 @@
+plugin/nutanix-0.1.0.umd.min.678.js
+plugin/nutanix-0.1.0.umd.min.678.js.map
+plugin/nutanix-0.1.0.umd.min.997.js
+plugin/nutanix-0.1.0.umd.min.997.js.map
+plugin/nutanix-0.1.0.umd.min.cloud-credential.js
+plugin/nutanix-0.1.0.umd.min.cloud-credential.js.map
+plugin/nutanix-0.1.0.umd.min.js
+plugin/nutanix-0.1.0.umd.min.js.map
+plugin/nutanix-0.1.0.umd.min.machine-config.js
+plugin/nutanix-0.1.0.umd.min.machine-config.js.map
+plugin/package.json
