@@ -98,6 +98,16 @@ export default {
     <div class="row mb-10">
       <div class="col span-6">
         <LabeledInput
+          v-model="value.vmIp"
+          label="Static IP (optional)"
+          placeholder="e.g. 10.0.0.50 - requires a Managed/IPAM subnet"
+        />
+      </div>
+    </div>
+
+    <div class="row mb-10">
+      <div class="col span-6">
+        <LabeledInput
           v-model="value.vmImage"
           label="Image"
           placeholder="Disk image template name"

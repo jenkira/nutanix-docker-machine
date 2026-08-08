@@ -48,6 +48,7 @@ type NutanixDriver struct {
 	VMMem            int
 	SSHPass          string
 	Subnet           []string
+	VMIP             string
 	Image            string
 	ImageSize        int
 	VMId             string
@@ -269,6 +270,16 @@ func (d *NutanixDriver) Create() error {
 	if len(res.NicList) < 1 {
 		log.Errorf("Network %s not found in cluster %s", d.Subnet, d.Cluster)
 		return fmt.Errorf("network %s not found in cluster %s", d.Subnet, d.Cluster)
+	}
+
+	// Request a specific static IP on the first NIC. Only takes effect if that
+	// NIC's subnet has IPAM enabled (a "Managed" subnet) in Prism Central.
+	if d.VMIP != "" {
+		res.NicList[0].IPEndpointList = append(res.NicList[0].IPEndpointList, &v3.IPAddress{
+			IP:   utils.StringPtr(d.VMIP),
+			Type: utils.StringPtr("ASSIGNED"),
+		})
+		log.Infof("Requesting static IP %s for VM %s", d.VMIP, name)
 	}
 
 	if len(d.Categories) != 0 {
@@ -607,6 +618,11 @@ func (d *NutanixDriver) GetCreateFlags() []mcnflag.Flag {
 			Usage: "The name of the network to attach to the newly created VM",
 		},
 		mcnflag.StringFlag{
+			EnvVar: "NUTANIX_VM_IP",
+			Name:   "nutanix-vm-ip",
+			Usage:  "Request a specific static IPv4 address for the VM's first NIC from a Nutanix-managed (IPAM-enabled) subnet, instead of waiting for DHCP",
+		},
+		mcnflag.StringFlag{
 			EnvVar: "NUTANIX_VM_IMAGE",
 			Name:   "nutanix-vm-image",
 			Usage:  "The name of the VM disk to clone from, for the newly created VM",
@@ -860,6 +876,15 @@ func (d *NutanixDriver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	if len(d.Subnet) == 0 {
 		return fmt.Errorf("nutanix-vm-network cannot be empty")
 	}
+
+	d.VMIP = opts.String("nutanix-vm-ip")
+	if d.VMIP != "" {
+		parsedIP := net.ParseIP(d.VMIP)
+		if parsedIP == nil || parsedIP.To4() == nil {
+			return fmt.Errorf("nutanix-vm-ip %s is not a valid IPv4 address", d.VMIP)
+		}
+	}
+
 	d.Image = opts.String("nutanix-vm-image")
 	if d.Image == "" {
 		return fmt.Errorf("nutanix-vm-image cannot be empty")

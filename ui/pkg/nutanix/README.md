@@ -66,3 +66,12 @@ yarn build-pkg nutanix
 ```
 
 Output lands in `dist-pkg/nutanix/`.
+
+## Published
+
+Tagged builds are packaged into a Helm chart and published to this repo's
+`gh-pages` branch by `.github/workflows/publish-ui-extension.yml`, served via
+GitHub Pages at `https://jenkira.github.io/nutanix-docker-machine/`. Add that
+URL as a repository in Rancher (*☰ > Extensions > ⋮ > Manage Repositories*)
+to install without a local dev server - see the main [README](../../../README.md#installation)
+for the full steps.

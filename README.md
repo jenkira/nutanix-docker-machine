@@ -55,7 +55,22 @@ If you want to use Nutanix Node Driver, you need add it in order to start using 
     tooling whose official scaffold Rancher archived in 2024 (see
     [Windows Node Support](#windows-node-support)). Leave *Custom UI URL* and
     *Whitelist Domains* blank for a driver-only install using Rancher's generic
-    form, or see [`ui/`](./ui) for the RKE2/K3s Rancher Extension in progress here.
+    form.
+
+    For RKE2/K3s node pools, install the companion [Rancher UI Extension](./ui)
+    instead - it gives the driver proper Cloud Credential and Machine Config
+    forms (OS picker, static IP, etc.) instead of one plain input per flag. It's
+    published as a Helm chart repository via GitHub Pages:
+
+    - In Rancher, go to *☰ > Extensions*, open the *⋮* menu (top right) >
+      *Manage Repositories* > *Create*.
+    - Set *Index URL* to `https://jenkira.github.io/nutanix-docker-machine/`.
+    - Once the repository syncs, install **Nutanix Node Driver UI** from the
+      *Available* tab on the Extensions page.
+
+    See [`ui/`](./ui) for the extension's source, or
+    [`ui/pkg/nutanix`](./ui/pkg/nutanix) for its own README (build/dev
+    instructions, current scaffold status).
 
 <img width="948" height="474" alt="image" src="https://github.com/user-attachments/assets/e2383b37-bb55-4242-ae6e-fec392da9577" />
 
@@ -87,6 +102,7 @@ If you want to use Nutanix Node Driver, you need add it in order to start using 
 | `nutanix-vm-cpus`            | The number of cpus in the newly created VM (core)                                                | no       | 2                                         |
 | `nutanix-vm-cores`           | The number of cores per vCPU                                                                     | no       | 1                                         |
 | `nutanix-vm-network`         | The network(s) to which the VM is attached to ( name or UUID )                                   | yes      |                                           |
+| `nutanix-vm-ip`              | Request a specific static IPv4 for the VM's first NIC (needs a Nutanix-managed/IPAM subnet)      | no       |                                           |
 | `nutanix-vm-image`           | The name of the Disk Image template we use for the newly created VM (must support cloud-init)    | yes      |                                           |
 | `nutanix-vm-image-size`      | The new size of the Image we use as a template (in GiB)                                          | no       |                                           |
 | `nutanix-vm-categories`      | The name of the categories who will be applied to the newly created VM                           | no       |                                           |
@@ -125,6 +141,17 @@ The Rancher Node Driver supports attaching GPU devices to VMs. To use GPUs:
 - Only UNUSED GPUs from the target Prism Element cluster will be selected
 - GPU names must match exactly with the GPU names available in the cluster
 - The driver will search for available GPUs across all hosts in the specified cluster
+
+## Static IP Assignment
+
+By default the driver waits for whatever IP the target subnet's DHCP hands out (see `nutanix-vm-network`). If you need a specific, predictable address instead - the same problem VMware's vSphere integrations usually solve by pushing a static IP into the guest via `guestinfo` - Nutanix solves it differently: **AHV's own IPAM, not guest-side configuration.**
+
+To use it:
+- The subnet named/UUID'd by `nutanix-vm-network` (the *first* one, if you pass it multiple times for a multi-NIC VM) must be a **Managed** subnet in Prism Central - i.e. IP Address Management (IPAM) enabled, with an IP pool configured. Unmanaged subnets (external/customer-run DHCP) have no pool for the driver's request to land in.
+- Set `nutanix-vm-ip` to the address you want, e.g. `--nutanix-vm-ip 10.0.0.50`. It must fall inside that subnet's configured pool.
+- If the subnet isn't Managed, or the address isn't available (outside the pool, already leased, etc.), VM creation fails with the error Nutanix itself reports - the driver doesn't pre-validate this ahead of time, it's a straight passthrough to the API.
+
+**No cloudbase-init or cloud-init changes are needed, and there are no variables to reference.** This is not the same mechanism as VMware's guestinfo-delivered static networking (where cloud-init/cloudbase-init writes a static IP/netmask/gateway into the guest's own network config, replacing DHCP). Nutanix's `IPEndpointList`/`ASSIGNED` request just tells AHV's *internal* DHCP server which address to hand out to that NIC's MAC address - the guest still runs an ordinary DHCP client and receives the reserved address exactly like it would any other DHCP lease. Any image already prepared for this driver (cloud-init on Linux, cloudbase-init on Windows per below) works as-is; nothing in `nutanix-cloud-init` needs to change to pick this up.
 
 ## Windows Node Support
 
