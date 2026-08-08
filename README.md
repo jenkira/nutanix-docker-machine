@@ -49,7 +49,7 @@ If you want to use Nutanix Node Driver, you need add it in order to start using 
 3. Complete the Add Node Driver form. Then click Create.
 
     - *Download URL*: `https://github.com/jenkira/nutanix-docker-machine/releases/download/v3.10.0/docker-machine-driver-nutanix`  
-    - *Checksum*: `(pending - filled in once the v3.10.0 release finishes publishing)`  
+    - *Checksum*: `99d9cd74870b059721acb0b83bc45c381a831196a37a99340769a68c96c04392`  
 
     This fork does not host the legacy `component.js` Custom UI - it's RKE1-only
     tooling whose official scaffold Rancher archived in 2024 (see
