@@ -1,9 +1,13 @@
 package driver
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/docker/machine/libmachine/drivers"
+	v3 "github.com/nutanix-cloud-native/prism-go-client/v3"
+	"github.com/nutanix-cloud-native/prism-go-client/v3/models"
+	"github.com/nutanix/docker-machine/utils"
 )
 
 // baseValidFlags returns the minimal set of flag values required for
@@ -141,5 +145,75 @@ func TestSetConfigFromFlags_IPv6StaticIPRejected(t *testing.T) {
 
 	if err := d.SetConfigFromFlags(checkFlags); err == nil {
 		t.Fatal("expected an error for an IPv6 nutanix-vm-ip value (API only supports IPv4), got nil")
+	}
+}
+
+func TestIsUUID(t *testing.T) {
+	cases := map[string]bool{
+		"550e8400-e29b-41d4-a716-446655440000": true,
+		"550E8400-E29B-41D4-A716-446655440000": true,
+		"my-cluster":                           false,
+		"":                                     false,
+		"550e8400-e29b-41d4-a716":              false,
+	}
+
+	for input, want := range cases {
+		if got := isUUID(input); got != want {
+			t.Errorf("isUUID(%q) = %v, want %v", input, got, want)
+		}
+	}
+}
+
+func clusterEntity(name, uuid string) *v3.ClusterIntentResponse {
+	return &v3.ClusterIntentResponse{
+		Spec:     &models.Cluster{Name: name},
+		Metadata: &v3.Metadata{UUID: utils.StringPtr(uuid)},
+	}
+}
+
+func TestFindClusterUUID_SingleMatch(t *testing.T) {
+	entities := []*v3.ClusterIntentResponse{
+		clusterEntity("other", "11111111-1111-1111-1111-111111111111"),
+		clusterEntity("mycluster", "22222222-2222-2222-2222-222222222222"),
+	}
+
+	got, err := findClusterUUID("mycluster", entities)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "22222222-2222-2222-2222-222222222222" {
+		t.Errorf("expected the matching cluster's UUID, got %q", got)
+	}
+}
+
+func TestFindClusterUUID_NoMatch(t *testing.T) {
+	entities := []*v3.ClusterIntentResponse{
+		clusterEntity("other", "11111111-1111-1111-1111-111111111111"),
+	}
+
+	_, err := findClusterUUID("mycluster", entities)
+	if err == nil {
+		t.Fatal("expected an error when no cluster matches the name, got nil")
+	}
+}
+
+// Nutanix does not enforce cluster name uniqueness within a Prism Central,
+// so this is a real, user-hit scenario (see rancher/rancher#47493) - the
+// error must name both conflicting UUIDs so nutanix-cluster can be set to
+// one of them to disambiguate, instead of failing the same way forever.
+func TestFindClusterUUID_MultipleMatchesListsUUIDsForDisambiguation(t *testing.T) {
+	entities := []*v3.ClusterIntentResponse{
+		clusterEntity("mycluster", "11111111-1111-1111-1111-111111111111"),
+		clusterEntity("mycluster", "22222222-2222-2222-2222-222222222222"),
+	}
+
+	_, err := findClusterUUID("mycluster", entities)
+	if err == nil {
+		t.Fatal("expected an error when more than one cluster matches the name, got nil")
+	}
+	for _, uuid := range []string{"11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"} {
+		if !strings.Contains(err.Error(), uuid) {
+			t.Errorf("expected error to mention conflicting UUID %s so the user can disambiguate, got: %v", uuid, err)
+		}
 	}
 }
