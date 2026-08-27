@@ -96,7 +96,7 @@ If you want to use Nutanix Node Driver, you need add it in order to start using 
 | `nutanix-username`           | The username of the nutanix management account                                                   | yes      |                                           |
 | `nutanix-password`           | The password of the nutanix management account                                                   | yes      |                                           |
 | `nutanix-insecure`           | Set to true to force SSL insecure connection                                                     | no       | false                                     |
-| `nutanix-cluster`            | The name of the cluster where deploy the VM (case sensitive)                                     | yes      |                                           |
+| `nutanix-cluster`            | The name (case sensitive) or UUID of the cluster to deploy the VM on                             | yes      |                                           |
 | `nutanix-boot-type`          | The boot type of the VM (legacy or uefi)                                                         | no       | legacy                                    |
 | `nutanix-vm-mem`             | The amount of RAM of the newly created VM (MB)                                                   | no       | 2 GB                                      |
 | `nutanix-vm-cpus`            | The number of cpus in the newly created VM (core)                                                | no       | 2                                         |
@@ -132,6 +132,28 @@ Starting `v3.3.0` the Rancher Node driver implements Nutanix Project support. Th
 
 Starting `v3.9.0` the Rancher Node Driver support Prism Central Service Accounts. 
 To use a Service Account, you need to provide `X-ntnx-api-key` as the user name and the corresponding API Key as the password.
+
+## Rancher HA: Keeping the Driver Binary in Sync
+
+If your Rancher server runs multiple replicas, be aware of a known Rancher bug ([rancher/rancher#42128](https://github.com/rancher/rancher/issues/42128), [#42302](https://github.com/rancher/rancher/issues/42302)): a custom node driver binary like this one can end up downloaded onto only *some* replicas' `/usr/share/rancher/ui/assets/`, not all of them. Because Rancher's node-driver registration and dynamic CRD generation (the `NutanixConfig`/`NutanixMachine`/`NutanixMachineTemplate` resources backing RKE2/K3s node pools) can run on whichever replica currently holds leadership, an inconsistent set of replicas can leave those resources unable to settle - showing up as recurring `failed to sync cache` errors and general Rancher/Fleet management-cluster instability, especially right after adding or updating this driver.
+
+This is a bug in Rancher itself, not something this driver's code can fix. [`scripts/sync-rancher-driver-binary.sh`](./scripts/sync-rancher-driver-binary.sh) is the operational workaround: it checks every Rancher server pod for a consistent copy of the driver binary, and with `--fix`, copies it from whichever pod has it (or downloads a fresh, checksum-verified copy from this repo's releases if no pod has it) to every pod that doesn't.
+
+```bash
+# Check only - reports which pods are missing the binary, changes nothing
+./scripts/sync-rancher-driver-binary.sh
+
+# Repair - syncs the binary across every Rancher pod
+./scripts/sync-rancher-driver-binary.sh --fix
+```
+
+Requires `kubectl` with a working context against the Rancher management cluster. Run `./scripts/sync-rancher-driver-binary.sh --help` for the full option list - namespace, pod selector, and binary name are all overridable if your deployment doesn't use Rancher's defaults.
+
+## Cluster Name Ambiguity
+
+`nutanix-cluster` accepts either a name or a UUID. Nutanix does not enforce unique cluster names within a single Prism Central, so if two clusters share the configured name, the driver can't guess which one you meant - it fails with an error listing the conflicting UUIDs rather than silently picking one. If you hit this, set `nutanix-cluster` to one of the UUIDs from that error message instead of the name.
+
+This matters more than a normal validation error: without it, RKE2/K3s machine provisioning retries the same unresolvable failure indefinitely, which can degrade the whole Rancher/Fleet management cluster over time (see [rancher/rancher#47493](https://github.com/rancher/rancher/issues/47493)). Switching to the UUID is the only real fix - there's no way to disambiguate identically-named clusters by name alone.
 
 ## GPU support
 

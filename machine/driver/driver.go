@@ -164,34 +164,34 @@ func (d *NutanixDriver) Create() error {
 
 	log.Infof("Searching cluster %s", d.Cluster)
 
-	c := &url.URL{Path: d.Cluster}
-	encodedCluster := c.String()
-	clusterFilter := fmt.Sprintf("name==%s", encodedCluster)
+	var clusterUUID string
 
-	clusters, err := conn.V3.ListAllCluster(ctx, clusterFilter)
-	if err != nil {
-		log.Errorf("Error getting clusters: [%v]", err)
-		return err
-	}
+	if isUUID(d.Cluster) {
+		// Skip the name lookup entirely - this is also the escape hatch for
+		// Prism Central deployments where more than one Cluster shares the
+		// same name (name-based lookup below can never disambiguate that).
+		clusterUUID = d.Cluster
+		log.Infof("UUID cluster reference used: %s", clusterUUID)
+	} else {
+		c := &url.URL{Path: d.Cluster}
+		encodedCluster := c.String()
+		clusterFilter := fmt.Sprintf("name==%s", encodedCluster)
 
-	// Validate filtered Clusters
-
-	foundClusters := make([]*v3.ClusterIntentResponse, 0)
-	for _, s := range clusters.Entities {
-		peSpec := s.Spec
-		if peSpec.Name == d.Cluster {
-			foundClusters = append(foundClusters, s)
+		clusters, err := conn.V3.ListAllCluster(ctx, clusterFilter)
+		if err != nil {
+			log.Errorf("Error getting clusters: [%v]", err)
+			return err
 		}
+
+		clusterUUID, err = findClusterUUID(d.Cluster, clusters.Entities)
+		if err != nil {
+			return err
+		}
+
+		log.Infof("Cluster %s found with UUID: %s", d.Cluster, clusterUUID)
 	}
 
-	if len(foundClusters) == 0 {
-		return fmt.Errorf("failed to retrieve cluster %s", d.Cluster)
-	} else if len(foundClusters) > 1 {
-		return fmt.Errorf("more than one Cluster found with name %s", d.Cluster)
-	}
-
-	log.Infof("Cluster %s found with UUID: %s", foundClusters[0].Status.Name, *foundClusters[0].Metadata.UUID)
-	spec.ClusterReference = utils.BuildReference(*foundClusters[0].Metadata.UUID, "cluster")
+	spec.ClusterReference = utils.BuildReference(clusterUUID, "cluster")
 
 	// Search target subnet
 
@@ -366,7 +366,7 @@ func (d *NutanixDriver) Create() error {
 	// Add GPU devices
 	if len(d.GPUs) > 0 {
 
-		gpuList, err := GetGPUList(ctx, conn, d.GPUs, *foundClusters[0].Metadata.UUID)
+		gpuList, err := GetGPUList(ctx, conn, d.GPUs, clusterUUID)
 		if err != nil {
 			log.Errorf("failed to get the GPU list to create the VM %s. %v", name, err)
 			return err
@@ -588,7 +588,7 @@ func (d *NutanixDriver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.StringFlag{
 			EnvVar: "NUTANIX_CLUSTER",
 			Name:   "nutanix-cluster",
-			Usage:  "Nutanix Cluster to install VM on",
+			Usage:  "Nutanix Cluster to install VM on (name or UUID; use the UUID if multiple clusters share the same name)",
 		},
 		mcnflag.IntFlag{
 			EnvVar: "NUTANIX_VM_MEM",

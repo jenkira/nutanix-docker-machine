@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -14,6 +15,34 @@ import (
 func isUUID(uuid string) bool {
 	uuidPattern := regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 	return uuidPattern.MatchString(uuid)
+}
+
+// findClusterUUID returns the UUID of the cluster named clusterName among
+// entities, matched by exact name. Nutanix does not enforce cluster name
+// uniqueness within a single Prism Central, so more than one match is a
+// distinct, user-actionable error - resolvable by passing the UUID directly
+// via nutanix-cluster instead of the ambiguous name - rather than silently
+// picking one and rather than a bare error a caller has no way to act on.
+func findClusterUUID(clusterName string, entities []*v3.ClusterIntentResponse) (string, error) {
+	foundClusters := make([]*v3.ClusterIntentResponse, 0)
+	for _, s := range entities {
+		if s.Spec.Name == clusterName {
+			foundClusters = append(foundClusters, s)
+		}
+	}
+
+	if len(foundClusters) == 0 {
+		return "", fmt.Errorf("failed to retrieve cluster %s", clusterName)
+	}
+	if len(foundClusters) > 1 {
+		uuids := make([]string, 0, len(foundClusters))
+		for _, fc := range foundClusters {
+			uuids = append(uuids, *fc.Metadata.UUID)
+		}
+		return "", fmt.Errorf("more than one Cluster found with name %s (UUIDs: %s) - set nutanix-cluster to one of these UUIDs to disambiguate", clusterName, strings.Join(uuids, ", "))
+	}
+
+	return *foundClusters[0].Metadata.UUID, nil
 }
 
 func iterateNode(node *yaml.Node, identifier string) *yaml.Node {
