@@ -19,7 +19,11 @@ jobs:
 
       - name: Lint Go Code
         run: |
-          go install honnef.co/go/tools/cmd/staticcheck@latest
+          # Pinned rather than @latest: staticcheck v0.8.x requires Go >= 1.26,
+          # ahead of this repo's go.mod (go 1.25.0), and would otherwise break
+          # every PR the moment a newer staticcheck release ships. v0.7.0 is
+          # the latest release that still matches our Go version.
+          go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
           staticcheck ./...
 
   vet:
