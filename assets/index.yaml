@@ -14,13 +14,13 @@ entries:
       catalog.cattle.io/ui-extensions-version: '>= 3.0.0 < 4.0.0'
     apiVersion: v2
     appVersion: 0.1.0
-    created: "2026-08-08T10:43:07.902215793Z"
+    created: "2026-08-27T02:36:08.041088429Z"
     description: 'Nutanix Node Driver UI: Cloud Credential and Machine Config components
       for RKE2/K3s provisioning, including Windows guest support'
-    digest: 6bbbcc43ad856a21014635308e77227fe5a9c0b59f4c62cc6d82ddbc4b96af5c
+    digest: ab1ad21d7e74db1aec17b9abbeb2bed0581c8721ae62087062751fbe02b286f0
     name: nutanix
     type: application
     urls:
     - assets/nutanix/nutanix-0.1.0.tgz
     version: 0.1.0
-generated: "2026-08-08T10:43:07.901655537Z"
+generated: "2026-08-27T02:36:08.040666843Z"
